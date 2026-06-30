@@ -3,12 +3,21 @@ import fs from 'fs';
 import path from 'path';
 import { parseM3U } from '@/lib/parser';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const filePath = path.join(process.cwd(), 'data', 'playlist.m3u8');
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get('type') || 'tv';
+
+    // Restrict inputs to prevent directory traversal and validate parameters
+    if (!['tv', 'series', 'movies'].includes(type)) {
+      return NextResponse.json({ error: 'Invalid playlist type' }, { status: 400 });
+    }
+
+    const filename = `${type}.m3u8`;
+    const filePath = path.join(process.cwd(), 'data', filename);
     
     if (!fs.existsSync(filePath)) {
-      return NextResponse.json({ error: 'Playlist file not found' }, { status: 404 });
+      return NextResponse.json({ videos: [] });
     }
 
     const fileContent = fs.readFileSync(filePath, 'utf-8');

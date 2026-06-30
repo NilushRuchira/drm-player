@@ -35,13 +35,18 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // Playlist Type (TV / Series / Movies)
+  const [playlistType, setPlaylistType] = useState<'tv' | 'series' | 'movies'>('tv');
+  
   // Selection & Filters
   const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
   useEffect(() => {
-    fetch('/api/videos')
+    setLoading(true);
+    setError(null);
+    fetch(`/api/videos?type=${playlistType}`)
       .then((res) => {
         if (!res.ok) throw new Error('Failed to load playlist data');
         return res.json();
@@ -51,6 +56,8 @@ export default function Dashboard() {
         // Autoselect the first video if available
         if (data.videos && data.videos.length > 0) {
           setSelectedVideo(data.videos[0]);
+        } else {
+          setSelectedVideo(null);
         }
         setLoading(false);
       })
@@ -59,7 +66,13 @@ export default function Dashboard() {
         setError(err.message || 'An error occurred loading the videos.');
         setLoading(false);
       });
-  }, []);
+  }, [playlistType]);
+
+  const handlePlaylistTypeChange = (type: 'tv' | 'series' | 'movies') => {
+    setPlaylistType(type);
+    setSelectedCategory('All');
+    setSearchQuery('');
+  };
 
   // Format seconds to human-readable hours and minutes
   const formatDuration = (seconds: number) => {
@@ -105,6 +118,29 @@ export default function Dashboard() {
           <span className={styles.logoIcon}>✦</span>
           <h1 className={styles.logoText}>DRM Stream <span className={styles.gradientText}>Nexus</span></h1>
         </div>
+
+        {/* Playlist Type Switcher Menu */}
+        <nav className={styles.playlistTypeMenu}>
+          <button
+            onClick={() => handlePlaylistTypeChange('tv')}
+            className={`${styles.typeButton} ${playlistType === 'tv' ? styles.typeButtonActive : ''}`}
+          >
+            <span className={styles.typeIcon}>📺</span> TV
+          </button>
+          <button
+            onClick={() => handlePlaylistTypeChange('series')}
+            className={`${styles.typeButton} ${playlistType === 'series' ? styles.typeButtonActive : ''}`}
+          >
+            <span className={styles.typeIcon}>🎬</span> Series
+          </button>
+          <button
+            onClick={() => handlePlaylistTypeChange('movies')}
+            className={`${styles.typeButton} ${playlistType === 'movies' ? styles.typeButtonActive : ''}`}
+          >
+            <span className={styles.typeIcon}>🎥</span> Movies
+          </button>
+        </nav>
+
         <div className={styles.statusIndicator}>
           <span className={styles.statusDot}></span>
           <span className={styles.statusText}>Backend Playlist Active</span>
