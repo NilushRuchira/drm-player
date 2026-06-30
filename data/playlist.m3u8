@@ -1,0 +1,37 @@
+#EXTM3U
+
+#EXTINF:8940 tvg-name="Grade 10 Maths - Sinhala S01E1" group-title="Grade 10 Maths - Sinhala" tvg-logo="https://api1.viu.lk/api/client/v1/global/images/20662?accessKey=WkVjNWNscFhORDBLCg==", S01E1 Perimeter
+#DESCRIPTION: Perimeter — Cast: DP Education • Director: DP Education • Year: 2020
+#KODIPROP:inputstream=inputstream.adaptive
+#KODIPROP:inputstream.adaptive.manifest_type=mpd
+#KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha
+#KODIPROP:inputstream.adaptive.license_key=https://api.viulk.xyz/api/api/license
+#KODIPROP:mimetype=application/dash+xml
+https://bpcdn.dialog.lk/bpk-vod/vodprod/output/0-sm024e01_perimeter/0-sm024e01_perimeter/index.mpd
+
+#EXTINF:7200 tvg-name="Grade 10 Maths - Sinhala S01E2" group-title="Grade 10 Maths - Sinhala" tvg-logo="https://api1.viu.lk/api/client/v1/global/images/20662?accessKey=WkVjNWNscFhORDBLCg==", S01E2 Area
+#DESCRIPTION: Area calculations of flat shapes — Cast: DP Education • Director: DP Education • Year: 2020
+#KODIPROP:inputstream=inputstream.adaptive
+#KODIPROP:inputstream.adaptive.manifest_type=mpd
+#KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha
+#KODIPROP:inputstream.adaptive.license_key=https://api.viulk.xyz/api/api/license
+#KODIPROP:mimetype=application/dash+xml
+https://bpcdn.dialog.lk/bpk-vod/vodprod/output/0-sm024e01_perimeter/0-sm024e01_perimeter/index.mpd
+
+#EXTINF:5400 tvg-name="Grade 10 Maths - Sinhala S01E3" group-title="Grade 10 Maths - Sinhala" tvg-logo="https://api1.viu.lk/api/client/v1/global/images/20662?accessKey=WkVjNWNscFhORDBLCg==", S01E3 Volume
+#DESCRIPTION: Volume calculations of 3D objects — Cast: DP Education • Director: DP Education • Year: 2020
+#KODIPROP:inputstream=inputstream.adaptive
+#KODIPROP:inputstream.adaptive.manifest_type=mpd
+#KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha
+#KODIPROP:inputstream.adaptive.license_key=https://api.viulk.xyz/api/api/license
+#KODIPROP:mimetype=application/dash+xml
+https://bpcdn.dialog.lk/bpk-vod/vodprod/output/0-sm024e01_perimeter/0-sm024e01_perimeter/index.mpd
+
+#EXTINF:9200 tvg-name="Grade 10 Science - English S01E1" group-title="Grade 10 Science - English" tvg-logo="https://api1.viu.lk/api/client/v1/global/images/20662?accessKey=WkVjNWNscFhORDBLCg==", S01E1 Cells
+#DESCRIPTION: Basic structures and functions of cells — Cast: DP Education • Director: DP Education • Year: 2021
+#KODIPROP:inputstream=inputstream.adaptive
+#KODIPROP:inputstream.adaptive.manifest_type=mpd
+#KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha
+#KODIPROP:inputstream.adaptive.license_key=https://api.viulk.xyz/api/api/license
+#KODIPROP:mimetype=application/dash+xml
+https://bpcdn.dialog.lk/bpk-vod/vodprod/output/0-sm024e01_perimeter/0-sm024e01_perimeter/index.mpd
