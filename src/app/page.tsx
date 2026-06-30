@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import dynamic from 'next/dynamic';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import styles from './page.module.css';
 
 // Dynamically import the VideoPlayer component with SSR disabled
@@ -30,7 +31,7 @@ interface VideoItem {
   url: string;
 }
 
-export default function Dashboard() {
+function DashboardContent() {
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,14 +44,17 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
+  // URL Query Parameters Navigation
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Pagination from URL query parameter
+  const pageParam = searchParams.get('page');
+  const currentPage = pageParam ? Math.max(1, parseInt(pageParam, 10)) : 1;
   const ITEMS_PER_PAGE = 6; // Display 6 items per page
 
-  // Reset pagination when search query or category changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, selectedCategory]);
+  // URL query resets are handled explicitly in search and category click handlers below
 
   useEffect(() => {
     setLoading(true);
@@ -81,7 +85,31 @@ export default function Dashboard() {
     setPlaylistType(type);
     setSelectedCategory('All');
     setSearchQuery('');
-    setCurrentPage(1);
+    
+    // Clear URL page parameter
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('page');
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  const handlePageChange = (page: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', page.toString());
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  const handleCategoryChange = (cat: string) => {
+    setSelectedCategory(cat);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('page');
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('page');
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
   // Format seconds to human-readable hours and minutes
@@ -189,7 +217,7 @@ export default function Dashboard() {
                   type="text"
                   placeholder="Search streams or lessons..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   className={styles.searchInput}
                 />
               </div>
@@ -200,7 +228,7 @@ export default function Dashboard() {
                   {categories.map((cat) => (
                     <button
                       key={cat}
-                      onClick={() => setSelectedCategory(cat)}
+                      onClick={() => handleCategoryChange(cat)}
                       className={`${styles.categoryButton} ${selectedCategory === cat ? styles.categoryActive : ''}`}
                     >
                       <span className={styles.categoryName}>{cat}</span>
@@ -306,7 +334,7 @@ export default function Dashboard() {
                   <div className={styles.paginationContainer}>
                     <button
                       onClick={() => {
-                        setCurrentPage((p) => Math.max(1, p - 1));
+                        handlePageChange(Math.max(1, currentPage - 1));
                         document.getElementById('video-list-section')?.scrollIntoView({ behavior: 'smooth' });
                       }}
                       disabled={currentPage === 1}
@@ -319,7 +347,7 @@ export default function Dashboard() {
                     </span>
                     <button
                       onClick={() => {
-                        setCurrentPage((p) => Math.min(totalPages, p + 1));
+                        handlePageChange(Math.min(totalPages, currentPage + 1));
                         document.getElementById('video-list-section')?.scrollIntoView({ behavior: 'smooth' });
                       }}
                       disabled={currentPage === totalPages}
@@ -335,5 +363,17 @@ export default function Dashboard() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <Suspense fallback={
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#07090e', color: '#fff', fontFamily: 'sans-serif' }}>
+        <p>Loading Dashboard...</p>
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   );
 }
