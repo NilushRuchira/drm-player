@@ -12,6 +12,7 @@ interface VideoPlayerProps {
   description?: string;
   licenseKey?: string;
   licenseType?: string;
+  onStop?: () => void;
 }
 
 export default function VideoPlayer({
@@ -20,6 +21,7 @@ export default function VideoPlayer({
   description,
   licenseKey,
   licenseType = 'com.widevine.alpha',
+  onStop,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -185,7 +187,14 @@ export default function VideoPlayer({
       </div>
 
       <div className={styles.infoSection}>
-        <h1 className={styles.title}>{title}</h1>
+        <div className={styles.infoHeader}>
+          <h1 className={styles.title}>{title}</h1>
+          {onStop && (
+            <button onClick={onStop} className={styles.stopButton} title="Stop Stream & Close Player">
+              <span className={styles.stopIcon}>■</span> Stop
+            </button>
+          )}
+        </div>
         {description && <p className={styles.description}>{description}</p>}
         {licenseKey && (
           <div className={styles.drmBadge}>

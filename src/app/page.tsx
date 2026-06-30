@@ -43,6 +43,15 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 6; // Display 6 items per page
+
+  // Reset pagination when search query or category changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory]);
+
   useEffect(() => {
     setLoading(true);
     setError(null);
@@ -72,6 +81,7 @@ export default function Dashboard() {
     setPlaylistType(type);
     setSelectedCategory('All');
     setSearchQuery('');
+    setCurrentPage(1);
   };
 
   // Format seconds to human-readable hours and minutes
@@ -102,6 +112,11 @@ export default function Dashboard() {
       (video.groupTitle && video.groupTitle.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesCategory && matchesSearch;
   });
+
+  // Paginated videos calculation
+  const totalPages = Math.ceil(filteredVideos.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedVideos = filteredVideos.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   const handleVideoSelect = (video: VideoItem) => {
     setSelectedVideo(video);
@@ -207,6 +222,7 @@ export default function Dashboard() {
                     description={selectedVideo.description}
                     licenseKey={selectedVideo.licenseKey}
                     licenseType={selectedVideo.licenseType}
+                    onStop={() => setSelectedVideo(null)}
                   />
                 </div>
               ) : (
@@ -219,7 +235,7 @@ export default function Dashboard() {
 
               {/* Videos Grid */}
               <div className={styles.videoGridSection}>
-                <h2 className={styles.sectionTitle}>
+                <h2 id="video-list-section" className={styles.sectionTitle}>
                   {selectedCategory} Streams 
                   <span className={styles.resultCount}>({filteredVideos.length} available)</span>
                 </h2>
@@ -230,7 +246,7 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   <div className={styles.videoGrid}>
-                    {filteredVideos.map((video) => {
+                    {paginatedVideos.map((video) => {
                       const isPlaying = selectedVideo?.id === video.id;
                       return (
                         <div
@@ -282,6 +298,35 @@ export default function Dashboard() {
                         </div>
                       );
                     })}
+                  </div>
+                )}
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className={styles.paginationContainer}>
+                    <button
+                      onClick={() => {
+                        setCurrentPage((p) => Math.max(1, p - 1));
+                        document.getElementById('video-list-section')?.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                      disabled={currentPage === 1}
+                      className={styles.paginationButton}
+                    >
+                      Previous
+                    </button>
+                    <span className={styles.pageIndicator}>
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setCurrentPage((p) => Math.min(totalPages, p + 1));
+                        document.getElementById('video-list-section')?.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                      disabled={currentPage === totalPages}
+                      className={styles.paginationButton}
+                    >
+                      Next
+                    </button>
                   </div>
                 )}
               </div>

@@ -244,3 +244,59 @@
 .dismissButton:active {
   transform: translateY(0);
 }
+
+.infoHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.stopButton {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  padding: 0.45rem 1rem;
+  border-radius: 8px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.stopButton:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+  transform: translateY(-1px);
+}
+
+.stopButton:active {
+  transform: translateY(0);
+}
+
+.stopIcon {
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+@media (max-width: 640px) {
+  .infoHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  
+  .stopButton {
+    align-self: flex-start;
+    width: 100%;
+    justify-content: center;
+  }
+}
