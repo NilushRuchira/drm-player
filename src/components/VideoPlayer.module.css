@@ -219,3 +219,28 @@
     padding: 1rem;
   }
 }
+
+.dismissButton {
+  margin-top: 1.5rem;
+  background: var(--accent-purple);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  padding: 0.65rem 1.5rem;
+  border-radius: 8px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  box-shadow: 0 4px 12px var(--accent-purple-glow);
+  transition: all 0.2s ease;
+}
+
+.dismissButton:hover {
+  background: #7c3aed;
+  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.6);
+  transform: translateY(-1px);
+}
+
+.dismissButton:active {
+  transform: translateY(0);
+}

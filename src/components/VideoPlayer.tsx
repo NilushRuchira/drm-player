@@ -24,6 +24,7 @@ export default function VideoPlayer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
+  const [dismissedError, setDismissedError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [playerInstance, setPlayerInstance] = useState<any>(null);
 
@@ -37,6 +38,7 @@ export default function VideoPlayer({
     if (!video || !container) return;
 
     setError(null);
+    setDismissedError(false);
     setLoading(true);
 
     // Initialize the Shaka Player
@@ -89,7 +91,14 @@ export default function VideoPlayer({
 
     const onError = (errorEvent: any) => {
       const err = errorEvent.detail || errorEvent;
-      console.error('Shaka Player Error code:', err.code, 'severity:', err.severity, err);
+      
+      // If the error is only recoverable (severity === 1), log it and don't interrupt playback
+      if (err && err.severity === 1) {
+        console.warn('Shaka Player Recoverable Error:', err.code, 'severity:', err.severity, err);
+        return;
+      }
+
+      console.error('Shaka Player Critical Error code:', err.code, 'severity:', err.severity, err);
       
       // Map common error codes to user-friendly messages
       let message = `Playback Error (Code ${err.code}).`;
@@ -148,7 +157,7 @@ export default function VideoPlayer({
             </div>
           )}
 
-          {error && (
+          {error && !dismissedError && (
             <div className={styles.errorOverlay}>
               <svg className={styles.errorIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -163,6 +172,13 @@ export default function VideoPlayer({
                   <li>Verify if your browser requires a CORS proxy for these URLs.</li>
                 </ul>
               </div>
+              <button
+                type="button"
+                onClick={() => setDismissedError(true)}
+                className={styles.dismissButton}
+              >
+                Dismiss & Force Play
+              </button>
             </div>
           )}
         </div>
