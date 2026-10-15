@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useState, Suspense } from 'react';
+import React, { useEffect, useState, Suspense, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import UploadModal from '@/components/UploadModal';
 import styles from './page.module.css';
 
 // Dynamically import the VideoPlayer component with SSR disabled
@@ -29,6 +30,8 @@ interface VideoItem {
   licenseKey?: string;
   mimetype?: string;
   url: string;
+  isUploaded?: boolean;
+  uploadSource?: string;
 }
 
 function DashboardContent() {
@@ -38,6 +41,9 @@ function DashboardContent() {
   
   // Playlist Type (TV / Series / Movies)
   const [playlistType, setPlaylistType] = useState<'tv' | 'series' | 'movies'>('tv');
+  
+  // Upload Modal State
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   
   // Selection & Filters
   const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
@@ -54,12 +60,10 @@ function DashboardContent() {
   const currentPage = pageParam ? Math.max(1, parseInt(pageParam, 10)) : 1;
   const ITEMS_PER_PAGE = 6; // Display 6 items per page
 
-  // URL query resets are handled explicitly in search and category click handlers below
-
-  useEffect(() => {
+  const fetchVideos = useCallback((typeToFetch = playlistType) => {
     setLoading(true);
     setError(null);
-    fetch(`/api/videos?type=${playlistType}`)
+    fetch(`/api/videos?type=${typeToFetch}`)
       .then((res) => {
         if (!res.ok) throw new Error('Failed to load playlist data');
         return res.json();
@@ -80,6 +84,18 @@ function DashboardContent() {
         setLoading(false);
       });
   }, [playlistType]);
+
+  useEffect(() => {
+    fetchVideos(playlistType);
+  }, [playlistType, fetchVideos]);
+
+  const handleUploadSuccess = (targetType: 'tv' | 'series' | 'movies') => {
+    if (playlistType === targetType) {
+      fetchVideos(targetType);
+    } else {
+      handlePlaylistTypeChange(targetType);
+    }
+  };
 
   const handlePlaylistTypeChange = (type: 'tv' | 'series' | 'movies') => {
     setPlaylistType(type);
@@ -184,9 +200,21 @@ function DashboardContent() {
           </button>
         </nav>
 
-        <div className={styles.statusIndicator}>
-          <span className={styles.statusDot}></span>
-          <span className={styles.statusText}>Backend Playlist Active</span>
+        {/* Header Right Actions */}
+        <div className={styles.headerRightActions}>
+          <button
+            onClick={() => setIsUploadModalOpen(true)}
+            className={styles.uploadHeaderButton}
+            title="Upload M3U8 Playlists"
+          >
+            <span className={styles.uploadHeaderIcon}>⬆</span>
+            <span className={styles.uploadHeaderText}>Upload M3U8</span>
+          </button>
+
+          <div className={styles.statusIndicator}>
+            <span className={styles.statusDot}></span>
+            <span className={styles.statusText}>Backend Playlist Active</span>
+          </div>
         </div>
       </header>
 
@@ -207,40 +235,8 @@ function DashboardContent() {
           </div>
         ) : (
           <div className={styles.contentLayout}>
-            {/* Sidebar Filters */}
-            <aside className={styles.sidebar}>
-              <div className={`${styles.searchWrapper} glass`}>
-                <svg className={styles.searchIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  type="text"
-                  placeholder="Search streams or lessons..."
-                  value={searchQuery}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  className={styles.searchInput}
-                />
-              </div>
-
-              <div className={`${styles.filterCard} glass`}>
-                <h3 className={styles.filterTitle}>Categories</h3>
-                <div className={styles.categoryList}>
-                  {categories.map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => handleCategoryChange(cat)}
-                      className={`${styles.categoryButton} ${selectedCategory === cat ? styles.categoryActive : ''}`}
-                    >
-                      <span className={styles.categoryName}>{cat}</span>
-                      <span className={styles.categoryBadge}>{getCategoryCount(cat)}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </aside>
-
-            {/* Video Player & Selection list */}
-            <section className={styles.contentArea}>
+            {/* Video Player Section - Placed on Top on Mobile via CSS order / DOM */}
+            <div className={styles.playerWrapper}>
               {selectedVideo ? (
                 <div className={styles.playerContainer}>
                   <VideoPlayer
@@ -257,111 +253,170 @@ function DashboardContent() {
                 <div className={`${styles.emptyPlayer} glass`}>
                   <div className={styles.emptyIcon}>🎬</div>
                   <h2>No Stream Selected</h2>
-                  <p>Choose a lesson from the list below to begin high-quality encrypted playback.</p>
+                  <p>Choose a stream from the list below to begin high-quality encrypted playback.</p>
                 </div>
               )}
+            </div>
 
-              {/* Videos Grid */}
-              <div className={styles.videoGridSection}>
-                <h2 id="video-list-section" className={styles.sectionTitle}>
-                  {selectedCategory} Streams 
-                  <span className={styles.resultCount}>({filteredVideos.length} available)</span>
-                </h2>
+            {/* Sidebar Filters */}
+            <aside className={styles.sidebar}>
+              <div className={`${styles.searchWrapper} glass`}>
+                <svg className={styles.searchIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search streams or lessons..."
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  className={styles.searchInput}
+                />
+              </div>
 
-                {filteredVideos.length === 0 ? (
-                  <div className={`${styles.noResults} glass`}>
-                    <p>No streams found matching "{searchQuery}" in category "{selectedCategory}"</p>
-                  </div>
-                ) : (
-                  <div className={styles.videoGrid}>
-                    {paginatedVideos.map((video) => {
-                      const isPlaying = selectedVideo?.id === video.id;
-                      return (
-                        <div
-                          key={video.id}
-                          onClick={() => handleVideoSelect(video)}
-                          className={`${styles.videoCard} glass ${isPlaying ? styles.cardPlaying : ''}`}
-                        >
-                          <div className={styles.cardThumbnailWrapper}>
-                            {video.tvgLogo ? (
-                              <img
-                                src={video.tvgLogo}
-                                alt={video.title}
-                                className={styles.cardThumbnail}
-                                onError={(e) => {
-                                  // Fallback if image fails to load
-                                  (e.target as HTMLElement).style.display = 'none';
-                                }}
-                              />
-                            ) : null}
-                            <div className={styles.thumbnailFallback}>
-                              <span>{video.groupTitle?.substring(0, 8) || 'DASH'}</span>
-                            </div>
-                            {video.duration ? (
-                              <span className={styles.durationBadge}>
-                                {formatDuration(video.duration)}
-                              </span>
-                            ) : null}
-                            {isPlaying && (
-                              <div className={styles.playingOverlay}>
-                                <div className={styles.playingIndicator}>
-                                  <span></span>
-                                  <span></span>
-                                  <span></span>
-                                </div>
-                                <span className={styles.playingText}>Now Playing</span>
-                              </div>
-                            )}
+              <div className={`${styles.filterCard} glass`}>
+                <div className={styles.filterCardHeader}>
+                  <h3 className={styles.filterTitle}>Categories</h3>
+                  <button
+                    onClick={() => setIsUploadModalOpen(true)}
+                    className={styles.sidebarUploadBtn}
+                    title="Upload M3U8 to this category"
+                  >
+                    + Add M3U8
+                  </button>
+                </div>
+                <div className={styles.categoryList}>
+                  {categories.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => handleCategoryChange(cat)}
+                      className={`${styles.categoryButton} ${selectedCategory === cat ? styles.categoryActive : ''}`}
+                    >
+                      <span className={styles.categoryName}>{cat}</span>
+                      <span className={styles.categoryBadge}>{getCategoryCount(cat)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </aside>
+
+            {/* Videos Grid Section */}
+            <section className={styles.videoGridSection}>
+              <h2 id="video-list-section" className={styles.sectionTitle}>
+                {selectedCategory} Streams 
+                <span className={styles.resultCount}>({filteredVideos.length} available)</span>
+              </h2>
+
+              {filteredVideos.length === 0 ? (
+                <div className={`${styles.noResults} glass`}>
+                  <p>No streams found matching &quot;{searchQuery}&quot; in category &quot;{selectedCategory}&quot;</p>
+                </div>
+              ) : (
+                <div className={styles.videoGrid}>
+                  {paginatedVideos.map((video) => {
+                    const isPlaying = selectedVideo?.id === video.id;
+                    return (
+                      <div
+                        key={video.id}
+                        onClick={() => handleVideoSelect(video)}
+                        className={`${styles.videoCard} glass ${isPlaying ? styles.cardPlaying : ''}`}
+                      >
+                        <div className={styles.cardThumbnailWrapper}>
+                          {video.tvgLogo ? (
+                            <img
+                              src={video.tvgLogo}
+                              alt={video.title}
+                              className={styles.cardThumbnail}
+                              onError={(e) => {
+                                // Fallback if image fails to load
+                                (e.target as HTMLElement).style.display = 'none';
+                              }}
+                            />
+                          ) : null}
+                          <div className={styles.thumbnailFallback}>
+                            <span>{video.groupTitle?.substring(0, 8) || 'DASH'}</span>
                           </div>
-                          
-                          <div className={styles.cardDetails}>
+                          {video.duration ? (
+                            <span className={styles.durationBadge}>
+                              {formatDuration(video.duration)}
+                            </span>
+                          ) : null}
+                          {isPlaying && (
+                            <div className={styles.playingOverlay}>
+                              <div className={styles.playingIndicator}>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                              </div>
+                              <span className={styles.playingText}>Now Playing</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className={styles.cardDetails}>
+                          <div className={styles.cardTagRow}>
                             {video.groupTitle && (
                               <span className={styles.cardCategory}>{video.groupTitle}</span>
                             )}
-                            <h3 className={styles.cardTitle}>{video.title}</h3>
-                            {video.description && (
-                              <p className={styles.cardDesc}>{video.description}</p>
+                            {video.isUploaded && (
+                              <span
+                                className={styles.uploadedBadge}
+                                title={video.uploadSource ? `Imported from ${video.uploadSource}` : 'Custom uploaded playlist'}
+                              >
+                                Uploaded
+                              </span>
                             )}
                           </div>
+                          <h3 className={styles.cardTitle}>{video.title}</h3>
+                          {video.description && (
+                            <p className={styles.cardDesc}>{video.description}</p>
+                          )}
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
-                {/* Pagination Controls */}
-                {totalPages > 1 && (
-                  <div className={styles.paginationContainer}>
-                    <button
-                      onClick={() => {
-                        handlePageChange(Math.max(1, currentPage - 1));
-                        document.getElementById('video-list-section')?.scrollIntoView({ behavior: 'smooth' });
-                      }}
-                      disabled={currentPage === 1}
-                      className={styles.paginationButton}
-                    >
-                      Previous
-                    </button>
-                    <span className={styles.pageIndicator}>
-                      Page {currentPage} of {totalPages}
-                    </span>
-                    <button
-                      onClick={() => {
-                        handlePageChange(Math.min(totalPages, currentPage + 1));
-                        document.getElementById('video-list-section')?.scrollIntoView({ behavior: 'smooth' });
-                      }}
-                      disabled={currentPage === totalPages}
-                      className={styles.paginationButton}
-                    >
-                      Next
-                    </button>
-                  </div>
-                )}
-              </div>
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className={styles.paginationContainer}>
+                  <button
+                    onClick={() => {
+                      handlePageChange(Math.max(1, currentPage - 1));
+                      document.getElementById('video-list-section')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    disabled={currentPage === 1}
+                    className={styles.paginationButton}
+                  >
+                    Previous
+                  </button>
+                  <span className={styles.pageIndicator}>
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    onClick={() => {
+                      handlePageChange(Math.min(totalPages, currentPage + 1));
+                      document.getElementById('video-list-section')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    disabled={currentPage === totalPages}
+                    className={styles.paginationButton}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </section>
           </div>
         )}
       </main>
+
+      {/* Upload M3U8 Modal */}
+      <UploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onUploadSuccess={handleUploadSuccess}
+        defaultType={playlistType}
+      />
     </div>
   );
 }

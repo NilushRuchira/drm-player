@@ -11,9 +11,16 @@ export interface PlaylistItem {
   licenseKey?: string;
   mimetype?: string;
   url: string;
+  isUploaded?: boolean;
+  uploadSource?: string;
 }
 
 export function parseM3U(content: string): PlaylistItem[] {
+  // Strip UTF-8 BOM if present
+  if (content.charCodeAt(0) === 0xFEFF) {
+    content = content.slice(1);
+  }
+
   const items: PlaylistItem[] = [];
   const lines = content.split(/\r?\n/);
   
