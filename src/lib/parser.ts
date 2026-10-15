@@ -39,7 +39,19 @@ export function parseM3U(content: string): PlaylistItem[] {
       currentItem = {};
       
       const extinfContent = line.substring(8); // Remove "#EXTINF:"
-      const commaIndex = extinfContent.indexOf(',');
+      
+      // Find the comma separating attributes and title (must be outside quoted strings)
+      let inQuote = false;
+      let commaIndex = -1;
+      for (let j = 0; j < extinfContent.length; j++) {
+        const ch = extinfContent[j];
+        if (ch === '"') {
+          inQuote = !inQuote;
+        } else if (ch === ',' && !inQuote) {
+          commaIndex = j;
+          break;
+        }
+      }
       
       let attrsPart = extinfContent;
       let titlePart = '';

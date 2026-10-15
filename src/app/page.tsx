@@ -50,6 +50,12 @@ function DashboardContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
+  // View Mode: 'grid' vs 'list'
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // Items per page: 10, 100, 1000, or 'all' (1k in single)
+  const [pageSize, setPageSize] = useState<number | 'all'>(10);
+
   // URL Query Parameters Navigation
   const router = useRouter();
   const pathname = usePathname();
@@ -58,7 +64,39 @@ function DashboardContent() {
   // Pagination from URL query parameter
   const pageParam = searchParams.get('page');
   const currentPage = pageParam ? Math.max(1, parseInt(pageParam, 10)) : 1;
-  const ITEMS_PER_PAGE = 6; // Display 6 items per page
+
+  // Restore user preferences from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedMode = localStorage.getItem('drm_view_mode');
+      if (savedMode === 'grid' || savedMode === 'list') {
+        setViewMode(savedMode);
+      }
+      const savedSize = localStorage.getItem('drm_page_size');
+      if (savedSize) {
+        setPageSize(savedSize === 'all' ? 'all' : parseInt(savedSize, 10));
+      }
+    }
+  }, []);
+
+  const handleViewModeChange = (mode: 'grid' | 'list') => {
+    setViewMode(mode);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('drm_view_mode', mode);
+    }
+  };
+
+  const handlePageSizeChange = (size: string) => {
+    const newSize = size === 'all' ? 'all' : parseInt(size, 10);
+    setPageSize(newSize);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('drm_page_size', size);
+    }
+    // Reset to page 1
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('page');
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  };
 
   const fetchVideos = useCallback((typeToFetch = playlistType) => {
     setLoading(true);
@@ -70,12 +108,8 @@ function DashboardContent() {
       })
       .then((data) => {
         setVideos(data.videos || []);
-        // Autoselect the first video if available
-        if (data.videos && data.videos.length > 0) {
-          setSelectedVideo(data.videos[0]);
-        } else {
-          setSelectedVideo(null);
-        }
+        // Requirement: Do not autoplay anything on page load or category switch
+        setSelectedVideo(null);
         setLoading(false);
       })
       .catch((err) => {
@@ -101,6 +135,7 @@ function DashboardContent() {
     setPlaylistType(type);
     setSelectedCategory('All');
     setSearchQuery('');
+    setSelectedVideo(null); // Ensure no autoplay
     
     // Clear URL page parameter
     const params = new URLSearchParams(searchParams.toString());
@@ -128,11 +163,13 @@ function DashboardContent() {
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
-  // Format seconds to human-readable hours and minutes
-  const formatDuration = (seconds: number) => {
-    if (!seconds) return '';
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
+  // Format seconds or minutes to human-readable hours and minutes
+  const formatDuration = (val: number) => {
+    if (!val) return '';
+    // If playlist is movies and val < 600, duration is in minutes
+    const totalSeconds = (playlistType === 'movies' && val < 600) ? val * 60 : val;
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
     if (hrs > 0) {
       return `${hrs}h ${mins}m`;
     }
@@ -157,10 +194,12 @@ function DashboardContent() {
     return matchesCategory && matchesSearch;
   });
 
-  // Paginated videos calculation
-  const totalPages = Math.ceil(filteredVideos.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedVideos = filteredVideos.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  // Paginated videos calculation based on pageSize (10, 100, 1000, or 'all')
+  const itemsPerPageNumber = pageSize === 'all' ? Math.max(1, filteredVideos.length) : pageSize;
+  const totalPages = Math.max(1, Math.ceil(filteredVideos.length / itemsPerPageNumber));
+  const effectivePage = Math.min(currentPage, totalPages);
+  const startIndex = pageSize === 'all' ? 0 : (effectivePage - 1) * itemsPerPageNumber;
+  const paginatedVideos = pageSize === 'all' ? filteredVideos : filteredVideos.slice(startIndex, startIndex + itemsPerPageNumber);
 
   const handleVideoSelect = (video: VideoItem) => {
     setSelectedVideo(video);
@@ -284,6 +323,30 @@ function DashboardContent() {
                     + Add M3U8
                   </button>
                 </div>
+
+                {/* Mobile Category Dropdown (Shown on mobile view) */}
+                <div className={styles.mobileCategoryWrapper}>
+                  <label htmlFor="mobile-cat-select" className={styles.mobileCategoryLabel}>
+                    Select Category:
+                  </label>
+                  <div className={styles.mobileCategorySelectContainer}>
+                    <select
+                      id="mobile-cat-select"
+                      value={selectedCategory}
+                      onChange={(e) => handleCategoryChange(e.target.value)}
+                      className={styles.mobileCategorySelect}
+                    >
+                      {categories.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat} ({getCategoryCount(cat)})
+                        </option>
+                      ))}
+                    </select>
+                    <span className={styles.selectChevron}>▼</span>
+                  </div>
+                </div>
+
+                {/* Desktop Category Buttons List (Shown on desktop view) */}
                 <div className={styles.categoryList}>
                   {categories.map((cat) => (
                     <button
@@ -299,28 +362,74 @@ function DashboardContent() {
               </div>
             </aside>
 
-            {/* Videos Grid Section */}
+            {/* Videos Grid / List Section */}
             <section className={styles.videoGridSection}>
-              <h2 id="video-list-section" className={styles.sectionTitle}>
-                {selectedCategory} Streams 
-                <span className={styles.resultCount}>({filteredVideos.length} available)</span>
-              </h2>
+              {/* Stream Toolbar with View Mode & Items To Display */}
+              <div className={styles.streamToolbar}>
+                <div className={styles.toolbarLeft}>
+                  <h2 id="video-list-section" className={styles.sectionTitle}>
+                    {selectedCategory} Streams 
+                    <span className={styles.resultCount}>({filteredVideos.length} available)</span>
+                  </h2>
+                </div>
+
+                <div className={styles.toolbarRight}>
+                  {/* Items per page selector (10, 100, 1000, 1k in single) */}
+                  <div className={styles.pageSizeWrapper}>
+                    <label htmlFor="page-size-select" className={styles.toolbarLabel}>Show:</label>
+                    <select
+                      id="page-size-select"
+                      value={pageSize}
+                      onChange={(e) => handlePageSizeChange(e.target.value)}
+                      className={styles.pageSizeSelect}
+                      title="Number of items to display"
+                    >
+                      <option value={10}>10 items</option>
+                      <option value={100}>100 items</option>
+                      <option value={1000}>1000 items</option>
+                      <option value="all">1k in single (All)</option>
+                    </select>
+                  </div>
+
+                  {/* View Mode Toggle: Grid vs List */}
+                  <div className={styles.viewModeToggle}>
+                    <button
+                      type="button"
+                      onClick={() => handleViewModeChange('grid')}
+                      className={`${styles.viewBtn} ${viewMode === 'grid' ? styles.viewBtnActive : ''}`}
+                      title="Grid View (with thumbnails)"
+                    >
+                      <span className={styles.viewBtnIcon}>⊞</span> Grid
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleViewModeChange('list')}
+                      className={`${styles.viewBtn} ${viewMode === 'list' ? styles.viewBtnActive : ''}`}
+                      title="List View (no icons)"
+                    >
+                      <span className={styles.viewBtnIcon}>☰</span> List
+                    </button>
+                  </div>
+                </div>
+              </div>
 
               {filteredVideos.length === 0 ? (
                 <div className={`${styles.noResults} glass`}>
                   <p>No streams found matching &quot;{searchQuery}&quot; in category &quot;{selectedCategory}&quot;</p>
                 </div>
-              ) : (
-                <div className={styles.videoGrid}>
+              ) : viewMode === 'grid' ? (
+                /* GRID VIEW (with thumbnails/icons) */
+                <div className={`${styles.videoGrid} ${playlistType === 'movies' ? styles.movieGrid : ''}`}>
                   {paginatedVideos.map((video) => {
                     const isPlaying = selectedVideo?.id === video.id;
+                    const isMovie = playlistType === 'movies';
                     return (
                       <div
                         key={video.id}
                         onClick={() => handleVideoSelect(video)}
-                        className={`${styles.videoCard} glass ${isPlaying ? styles.cardPlaying : ''}`}
+                        className={`${styles.videoCard} ${isMovie ? styles.movieCard : ''} glass ${isPlaying ? styles.cardPlaying : ''}`}
                       >
-                        <div className={styles.cardThumbnailWrapper}>
+                        <div className={`${styles.cardThumbnailWrapper} ${isMovie ? styles.movieThumbnailWrapper : ''}`}>
                           {video.tvgLogo ? (
                             <img
                               src={video.tvgLogo}
@@ -375,36 +484,94 @@ function DashboardContent() {
                     );
                   })}
                 </div>
+              ) : (
+                /* LIST VIEW (NO ICON / THUMBNAIL) */
+                <div className={styles.videoList}>
+                  {paginatedVideos.map((video) => {
+                    const isPlaying = selectedVideo?.id === video.id;
+                    return (
+                      <div
+                        key={video.id}
+                        onClick={() => handleVideoSelect(video)}
+                        className={`${styles.videoListRow} glass ${isPlaying ? styles.listRowPlaying : ''}`}
+                      >
+                        {/* Requirement: If List Do not display icon */}
+                        <div className={styles.listRowMain}>
+                          <div className={styles.listRowMeta}>
+                            {video.groupTitle && (
+                              <span className={styles.cardCategory}>{video.groupTitle}</span>
+                            )}
+                            {video.isUploaded && (
+                              <span
+                                className={styles.uploadedBadge}
+                                title={video.uploadSource ? `Imported from ${video.uploadSource}` : 'Custom uploaded playlist'}
+                              >
+                                Uploaded
+                              </span>
+                            )}
+                            {video.duration ? (
+                              <span className={styles.listDurationText}>
+                                • {formatDuration(video.duration)}
+                              </span>
+                            ) : null}
+                          </div>
+
+                          <h3 className={styles.listRowTitle}>
+                            {isPlaying && <span className={styles.playingIndicatorDot}>▶</span>}
+                            {video.title}
+                          </h3>
+
+                          {video.description && (
+                            <p className={styles.listRowDesc}>{video.description}</p>
+                          )}
+                        </div>
+
+                        <div className={styles.listRowAction}>
+                          <button
+                            type="button"
+                            className={`${styles.listPlayButton} ${isPlaying ? styles.listPlayButtonActive : ''}`}
+                          >
+                            {isPlaying ? 'Playing' : 'Play'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
 
-              {/* Pagination Controls */}
-              {totalPages > 1 && (
+              {/* Single Page Summary or Pagination Controls */}
+              {pageSize === 'all' ? (
+                <div className={styles.singlePageIndicator}>
+                  <span>Showing all {filteredVideos.length} streams on a single page</span>
+                </div>
+              ) : totalPages > 1 ? (
                 <div className={styles.paginationContainer}>
                   <button
                     onClick={() => {
-                      handlePageChange(Math.max(1, currentPage - 1));
+                      handlePageChange(Math.max(1, effectivePage - 1));
                       document.getElementById('video-list-section')?.scrollIntoView({ behavior: 'smooth' });
                     }}
-                    disabled={currentPage === 1}
+                    disabled={effectivePage === 1}
                     className={styles.paginationButton}
                   >
                     Previous
                   </button>
                   <span className={styles.pageIndicator}>
-                    Page {currentPage} of {totalPages}
+                    Page {effectivePage} of {totalPages}
                   </span>
                   <button
                     onClick={() => {
-                      handlePageChange(Math.min(totalPages, currentPage + 1));
+                      handlePageChange(Math.min(totalPages, effectivePage + 1));
                       document.getElementById('video-list-section')?.scrollIntoView({ behavior: 'smooth' });
                     }}
-                    disabled={currentPage === totalPages}
+                    disabled={effectivePage === totalPages}
                     className={styles.paginationButton}
                   >
                     Next
                   </button>
                 </div>
-              )}
+              ) : null}
             </section>
           </div>
         )}

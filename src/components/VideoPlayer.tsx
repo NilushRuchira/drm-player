@@ -147,7 +147,6 @@ export default function VideoPlayer({
           <video
             ref={videoRef}
             className={styles.videoElement}
-            autoPlay
             playsInline
             data-shaka-player
           />
